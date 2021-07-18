@@ -10,11 +10,11 @@ class Player():
     def __init__(self, mode, control=False):
 
         self.control = control  # if True, playing mode is activated. else, AI mode.
-        self.pos = [100, 275]   # position of the agent
-        self.direction = -1     # if 1, goes upwards. else, goes downwards.
-        self.v = 0              # vertical velocity
-        self.g = 9.8            # gravity constant
-        self.mode = mode        # game mode
+        self.pos = [100, 275]  # position of the agent
+        self.direction = -1  # if 1, goes upwards. else, goes downwards.
+        self.v = 0  # vertical velocity
+        self.g = 9.8  # gravity constant
+        self.mode = mode  # game mode
 
         # neural network architecture (AI mode)
         layer_sizes = self.init_network(mode)
@@ -90,14 +90,13 @@ class Player():
 
         layer_sizes = None
         if mode == 'gravity':
-            layer_sizes = [6, 20, 1]
+            layer_sizes = [7, 20, 1]
         elif mode == 'helicopter':
             layer_sizes = [6, 20, 1]
         elif mode == 'thrust':
             layer_sizes = [6, 20, 1]
         return layer_sizes
 
-    
     def think(self, mode, box_lists, agent_position, velocity):
 
         # TODO
@@ -105,8 +104,19 @@ class Player():
         # box_lists: an array of `BoxList` objects
         # agent_position example: [600, 250]
         # velocity example: 7
-
-        direction = -1
+        input_array = agent_position.copy()
+        input_array.append(velocity)
+        for box_list in box_lists:
+            input_array.append(box_list.x)
+            input_array.append(box_list.gap_mid)
+        input_vector = np.asarray(input_array).reshape(len(input_array), 1, dtype=np.float64)
+        input_vector = input_vector / np.linalg.norm(input_vector)
+        self.nn.forward(input_vector)
+        prob = self.nn.activations[2][0]
+        if prob < 0.5:
+            direction = -1
+        else:
+            direction = 1
         return direction
 
     def collision_detection(self, mode, box_lists, camera):
