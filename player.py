@@ -90,11 +90,11 @@ class Player():
 
         layer_sizes = None
         if mode == 'gravity':
-            layer_sizes = [7, 20, 1]
+            layer_sizes = [9, 20, 1]
         elif mode == 'helicopter':
-            layer_sizes = [6, 20, 1]
+            layer_sizes = [9, 20, 1]
         elif mode == 'thrust':
-            layer_sizes = [6, 20, 1]
+            layer_sizes = [9, 30, 3]
         return layer_sizes
 
     def think(self, mode, box_lists, agent_position, velocity):
@@ -104,19 +104,54 @@ class Player():
         # box_lists: an array of `BoxList` objects
         # agent_position example: [600, 250]
         # velocity example: 7
+        prob=0
         input_array = agent_position.copy()
-        input_array.append(velocity)
-        for box_list in box_lists:
-            input_array.append(box_list.x)
-            input_array.append(box_list.gap_mid)
-        input_vector = np.asarray(input_array).reshape(len(input_array), 1, dtype=np.float64)
-        input_vector = input_vector / np.linalg.norm(input_vector)
-        self.nn.forward(input_vector)
-        prob = self.nn.activations[2][0]
+        input_array[1]=input_array[1]/CONFIG['HEIGHT']
+        # input_array.append(velocity)
+        for box_list in box_lists[:3]:
+            input_array.append(box_list.x-input_array[0]/CONFIG['WIDTH'])
+            input_array.append(box_list.gap_mid/CONFIG['HEIGHT'])
+        while len(input_array)<8:
+            k=0
+            if k ==0:
+                input_array.append(1-agent_position[0]/CONFIG["WIDTH"])
+                k+=1
+            else:
+                input_array.append(0)
+            input_array.append(0.5)
+        # if len(box_lists)>1:
+        #     input_array[0] = (input_array[0] - box_lists[0].x)/CONFIG['WIDTH']
+        #     input_array[1]=input_array[1]/CONFIG['HEIGHT']
+        #     input_array.append((box_lists[1].x - box_lists[0].x)/CONFIG['WIDTH'])
+        #     input_array.append(box_lists[0].gap_mid/CONFIG['HEIGHT'])
+        #     input_array.append(box_lists[1].gap_mid/CONFIG['HEIGHT'])
+        if mode=='thrust':
+            input_array.append(velocity/6)
+        else:
+            input_array.append(velocity)
+        #
+            input_vector = np.asarray(input_array, dtype=np.float64).reshape(len(input_array), 1)
+            input_vector = input_vector / np.linalg.norm(input_vector)
+
+            self.nn.forward(input_vector)
+            prob = self.nn.activations[-1][0]
+            # if prob>0.best:
+            #     print(prob)
+        # print(type(prob))
         if prob < 0.5:
             direction = -1
         else:
             direction = 1
+        if mode == "thrust":
+            max_in = -2
+            s = 0
+            print(self.nn.activations[-1])
+            for i, t in enumerate(self.nn.activations[-1]):
+
+                if t > max_in:
+                    s = i
+                    max_in = t
+            direction = s - 1
         return direction
 
     def collision_detection(self, mode, box_lists, camera):
