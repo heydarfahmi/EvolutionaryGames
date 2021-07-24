@@ -1,3 +1,5 @@
+import math
+
 from player import Player
 import numpy as np
 from config import CONFIG
@@ -18,20 +20,18 @@ class Evolution():
     def mutate(self, child):
         w1 = child.nn.weights
         b1 = child.nn.bias
-        pm = 0.4
+        pm = 0.3
         v = 0.5
-
+        random.seed(1)
         p = random.random()
         if pm < p:
             return
-        for i in [1,len(w1)-1]:
+        for i in [1, len(w1) - 1]:
             b_s = b1[i].shape
             w_s = w1[i].shape
-            child.nn.bias[i] += np.random.normal(-0.1, v, b_s)
-            child.nn.weights[i] += np.random.normal(-0.1, v, w_s)
-        # pass
-        # TODO
-        # child: an object of class `Player`
+            child.nn.bias[i] += np.random.normal(0, 0.2, b_s)
+            child.nn.weights[i] += np.random.normal(0, 0.2, w_s)
+        return child
 
     def cross_over(selfs, player1, player2):
         w1 = player1.nn.weights
@@ -44,41 +44,20 @@ class Evolution():
         player2.nn.bias[1] = b1[1]
 
     def generate_new_population(self, num_players, prev_players=None):
-
-        # in first generation, we create random players
         if prev_players is None:
             return [Player(self.mode) for _ in range(num_players)]
 
         else:
-            pc = random.uniform(0.2, 0.5)
-            pc=0.5
+
             sum_fitness = float(sum(player.fitness for player in prev_players))
             prob_list = [player.fitness / sum_fitness for player in prev_players]
             new_players = list(np.random.choice(prev_players, int(num_players), prob_list))
             new_players = copy.deepcopy(new_players)
-            num_of_cross_over = num_players - int(num_players * pc)
-            if num_of_cross_over % 2 == 1:
-                num_of_cross_over += 1
 
-            parents = list(np.random.choice(new_players, num_of_cross_over))
-            np.random.shuffle(parents)
-            for k in range(0, int(num_of_cross_over / 2)):
-                self.cross_over(parents[k], parents[k + int(num_of_cross_over / 2)])
+            for player_index in range(len(new_players)):
+                new_players[player_index] = self.mutate(new_players[player_index])
 
-            # TODO
-            # num_players example: 150
-            # prev_players: an array of `Player` objects
-
-            # TODO (additional): a selection method other than `fitness proportionate`
-            # TODO (additional): implementing crossover
-
-            for player in new_players:
-                self.mutate(player)
-            new_players = new_players[:num_players]
-            if len(new_players) != num_players:
-                print("WHAT THE")
-                raise Exception
-            return new_players[:num_players]
+            return new_players
 
     def next_population_selection(self, players, num_players):
 
@@ -87,5 +66,4 @@ class Evolution():
         # players: an array of `Player` objects
         # TODO (additional): a selection method other than `top-k`
         # TODO (additional): plotting
-
         return sorted(players, key=lambda player: player.fitness, reverse=True)[:num_players]
